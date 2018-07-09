@@ -19,7 +19,7 @@ https://api.youneedabudget.com/v1#/User/getUser
 */
 func (us *UserService) Get() (User, error) {
 	var response UserResponse
-	if err := service(*us).do("GET", "user", nil, &response); err != nil {
+	if err := service(*us).do("GET", "user", nil, nil, &response); err != nil {
 		return User{}, err
 	}
 	return response.Data.User, nil

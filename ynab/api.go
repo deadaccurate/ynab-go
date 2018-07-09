@@ -1,37 +1,37 @@
 package ynab
 
 import (
-	"net/http"
-	"io/ioutil"
-	"encoding/json"
-	"net/url"
-	"io"
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 )
 
 type Client struct {
-	BaseURL   *url.URL
-	client *http.Client
+	BaseURL     *url.URL
+	client      *http.Client
 	accessToken string
 
-	AccountsService *AccountsService
-	BudgetService *BudgetsService
-	CategoriesService *CategoriesService
-	MonthsService *MonthsService
-	PayeeLocationsService *PayeeLocationsService
-	PayeesService *PayeesService
+	AccountsService              *AccountsService
+	BudgetService                *BudgetsService
+	CategoriesService            *CategoriesService
+	MonthsService                *MonthsService
+	PayeeLocationsService        *PayeeLocationsService
+	PayeesService                *PayeesService
 	ScheduledTransactionsService *ScheduledTransactionsService
-	TransactionsService *TransactionsService
-	UserService *UserService
+	TransactionsService          *TransactionsService
+	UserService                  *UserService
 }
 
 type service struct {
 	client *Client
 }
 
-func (s service) do(method string, url string, reqBody interface{}, respBody interface{}) error {
-	err := s.client.do(method, url, reqBody, respBody)
+func (s service) do(method string, url string, queries map[string]string, reqBody interface{}, respBody interface{}) error {
+	err := s.client.do(method, url, queries, reqBody, respBody)
 	if err != nil {
 		return err
 	}
@@ -39,13 +39,13 @@ func (s service) do(method string, url string, reqBody interface{}, respBody int
 }
 
 type ErrorResponse struct {
-	Response *http.Response
+	Response     *http.Response
 	ErrorDetails ApiError `json:"error"`
 }
 
 type ApiError struct {
-	Id string `json:"id"`
-	Name string `json:"name"`
+	Id     string `json:"id"`
+	Name   string `json:"name"`
 	Detail string `json:"detail"`
 }
 
@@ -68,8 +68,8 @@ func NewClient(baseUrl *url.URL, httpClient *http.Client, accessToken string) *C
 	}
 
 	client := &Client{
-		BaseURL: baseUrl,
-		client: httpClient,
+		BaseURL:     baseUrl,
+		client:      httpClient,
 		accessToken: accessToken,
 	}
 
@@ -86,7 +86,7 @@ func NewClient(baseUrl *url.URL, httpClient *http.Client, accessToken string) *C
 	return client
 }
 
-func (yc Client) newRequest(method string, relUrl string, reqBody interface{}) (*http.Request, error) {
+func (yc Client) newRequest(method string, relUrl string, queries map[string]string, reqBody interface{}) (*http.Request, error) {
 	rel := &url.URL{Path: relUrl}
 	resolvedUrl := yc.BaseURL.ResolveReference(rel)
 
@@ -111,8 +111,16 @@ func (yc Client) newRequest(method string, relUrl string, reqBody interface{}) (
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	req.Header.Add("Authorization", "Bearer " + yc.accessToken)
+	req.Header.Add("Authorization", "Bearer "+yc.accessToken)
 	req.Header.Set("Accept", "application/json")
+
+	if queries != nil {
+		q := req.URL.Query()
+		for qKey, qVal := range queries {
+			q.Add(qKey, qVal)
+		}
+		req.URL.RawQuery = q.Encode()
+	}
 
 	return req, nil
 }
@@ -130,8 +138,8 @@ func (yc Client) checkResponse(r *http.Response) error {
 	return errorResponse
 }
 
-func (yc Client) do(method string, relUrl string, reqBody interface{}, v interface{}) error {
-	req, err := yc.newRequest(method, relUrl, reqBody)
+func (yc Client) do(method string, relUrl string, queries map[string]string, reqBody interface{}, v interface{}) error {
+	req, err := yc.newRequest(method, relUrl, queries, reqBody)
 
 	if err != nil {
 		return err
